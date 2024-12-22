@@ -39,10 +39,16 @@ async function run() {
 
     const database = client.db('House_service');
     const serviceCollection = database.collection('service');
-    //sirvice posst
+    //sirvice post
     app.post('/addservice', async (req, res) => {
       const addService = req.body;
       const result = await serviceCollection.insertOne(addService);
+      res.send(result);
+    });
+    //service get
+    app.get('/service', async (req, res) => {
+      const query = serviceCollection.find().limit(6);
+      const result = await query.toArray();
       res.send(result);
     });
   } finally {
