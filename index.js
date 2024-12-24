@@ -81,6 +81,23 @@ async function run() {
 
       res.send(Array.isArray(result) ? result : [result]);
     });
+    //delete the review
+    app.delete('/review/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await reviewCollection.deleteOne(query);
+      res.send(result);
+    });
+    //review update
+    app.patch('/review/:id', async (req, res) => {
+      const id = req.params.id;
+      const { review, rating, title } = req.body;
+
+      const filter = { _id: new ObjectId(id) };
+      const update = { $set: { review, rating, title } };
+      const result = await reviewCollection.updateOne(filter, update);
+      res.send(result);
+    });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
