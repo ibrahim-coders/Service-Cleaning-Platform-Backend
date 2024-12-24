@@ -53,6 +53,18 @@ async function run() {
       const result = await query.toArray();
       res.send(result);
     });
+    app.get('/myservice/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { userEmail: email };
+      const result = await serviceCollection.find(query).toArray();
+      res.send(result);
+    });
+    app.delete('/service/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await serviceCollection.deleteOne(query);
+      res.send(result);
+    });
     app.get('/all-service', async (req, res) => {
       const query = serviceCollection.find();
       const result = await query.toArray();
@@ -81,6 +93,7 @@ async function run() {
 
       res.send(Array.isArray(result) ? result : [result]);
     });
+
     //delete the review
     app.delete('/review/:id', async (req, res) => {
       const id = req.params.id;
