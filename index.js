@@ -72,9 +72,14 @@ async function run() {
       res.send(result);
     });
     //get the client side
-    app.get('/review-show', async (req, res) => {
-      const result = await reviewCollection.find().toArray();
-      res.send(result);
+
+    app.get('/review-show/:email', async (req, res) => {
+      const email = req.params.email;
+      const query = { 'person.email': email };
+
+      const result = await reviewCollection.find(query).toArray();
+
+      res.send(Array.isArray(result) ? result : [result]);
     });
   } finally {
     // Ensures that the client will close when you finish/error
