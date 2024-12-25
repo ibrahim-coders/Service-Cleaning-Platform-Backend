@@ -4,17 +4,17 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 const app = express();
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 
-// const corsOptions = {
-//   origin: ['http://localhost:5173'],
-//   credentials: true,
-//   optionalsSuccessStatus: 200,
-// };
-// app.use(cors(corsOptions));
-// app.use(express.json());
-// app.use(cookieParser());
-app.use(cors());
+app.use(
+  cors({
+    origin: ['http://localhost:5173'],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
 
 const uri = `mongodb+srv://${process.env.SECRET_NAME}:${process.env.SECRET_PASS}@cluster0.whh17.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
@@ -26,6 +26,29 @@ const client = new MongoClient(uri, {
     deprecationErrors: true,
   },
 });
+//verify-token
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+
+  console.log('Middleware received token:', token);
+
+  if (!token) {
+    return res.status(401).send({ message: 'Unauthorized access' });
+  }
+
+  // Verify the token
+  jwt.verify(token, process.env.JWT_SECRET_KEY, (err, decoded) => {
+    if (err) {
+      console.error('Token verification error:', err.message);
+      return res.status(403).send({ message: 'Forbidden: Invalid token' });
+    }
+    req.user = decoded;
+
+    console.log('Decoded token:', decoded);
+
+    next();
+  });
+};
 
 async function run() {
   try {
@@ -40,35 +63,59 @@ async function run() {
     const database = client.db('House_service');
     const serviceCollection = database.collection('service');
     const reviewCollection = database.collection('review');
+
+    //generater jwt
+    app.post('/jwt', async (req, res) => {
+      const email = req.body;
+      const token = jwt.sign(email, process.env.JWT_SECRET_KEY, {
+        expiresIn: '90d',
+      });
+      console.log(token);
+      res
+        .cookie('token', token, {
+          httpOnly: true,
+          secure: (process.env.NODE_ENV = 'producation'),
+          sameSite: (process.env.NODE_ENV = 'producation' ? 'none' : 'strict'),
+        })
+        .send({ success: true });
+    });
+    //logout
+    app.get('/logout', async (req, res) => {
+      res
+        .clearCookie('token', {
+          maxAge: 0,
+          secure: (process.env.NODE_ENV = 'producation'),
+          sameSite: (process.env.NODE_ENV = 'producation' ? 'none' : 'strict'),
+        })
+        .send({ success: true });
+    });
     //sirvice post
-    app.post('/addservice', async (req, res) => {
+    app.post('/addservice', verifyToken, async (req, res) => {
       const addService = req.body;
       const result = await serviceCollection.insertOne(addService);
       res.send(result);
     });
 
     //service get
-    app.get('/service', async (req, res) => {
+    app.get('/service', verifyToken, async (req, res) => {
       const query = serviceCollection.find().limit(6);
       const result = await query.toArray();
       res.send(result);
     });
-    app.get('/myservice/:email', async (req, res) => {
+    app.get('/myservice/:email', verifyToken, async (req, res) => {
       try {
+        const decodeEmail = req.user?.email;
         const email = req.params.email;
-        const filter = req.query.filter || ''; // Default to empty string
+        const filter = req.query.filter || '';
         const search = req.query.search || '';
-
-        console.log('Filter:', filter, 'Search:', search);
-
-        // Construct the query object
         let query = { userEmail: email };
-
-        // Apply filter and search conditions if provided
+        // console.log('decode', decodeEmail);
+        // console.log('parmas', email);
+        if (decodeEmail !== email)
+          return res.status(401).send({ message: 'Unauthorized access' });
         if (filter) query.category = filter;
-        if (search) query.title = { $regex: search, $options: 'i' }; // Case-insensitive search
+        if (search) query.title = { $regex: search, $options: 'i' };
 
-        // Fetch the data from the collection
         const result = await serviceCollection.find(query).toArray();
 
         // Send the response
@@ -79,19 +126,20 @@ async function run() {
       }
     });
 
-    app.delete('/service/:id', async (req, res) => {
+    app.delete('/service/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await serviceCollection.deleteOne(query);
       res.send(result);
     });
-    app.get('/all-service', async (req, res) => {
+
+    app.get('/all-service', verifyToken, async (req, res) => {
       const query = serviceCollection.find();
       const result = await query.toArray();
       res.send(result);
     });
     //update service
-    app.put('/update-service/:id', async (req, res) => {
+    app.put('/update-service/:id', verifyToken, async (req, res) => {
       const { id } = req.params;
       const updatedService = req.body;
       const query = { _id: new ObjectId(id) };
@@ -109,31 +157,33 @@ async function run() {
       res.send(result);
     });
     //post revie
-    app.post('/review', async (req, res) => {
+    app.post('/review', verifyToken, async (req, res) => {
       const addReview = req.body;
       const result = await reviewCollection.insertOne(addReview);
       res.send(result);
     });
     //get the client side
 
-    app.get('/review-show/:email', async (req, res) => {
+    app.get('/review-show/:email', verifyToken, async (req, res) => {
+      const decodeEmail = req.user?.email;
       const email = req.params.email;
       const query = { 'person.email': email };
-
+      if (decodeEmail !== email)
+        return res.status(401).send({ message: 'Unauthorized access' });
       const result = await reviewCollection.find(query).toArray();
 
       res.send(Array.isArray(result) ? result : [result]);
     });
 
     //delete the review
-    app.delete('/review/:id', async (req, res) => {
+    app.delete('/review/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await reviewCollection.deleteOne(query);
       res.send(result);
     });
     //review update
-    app.patch('/review/:id', async (req, res) => {
+    app.patch('/review/:id', verifyToken, async (req, res) => {
       const id = req.params.id;
       const { review, rating, title } = req.body;
 
