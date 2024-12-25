@@ -54,11 +54,31 @@ async function run() {
       res.send(result);
     });
     app.get('/myservice/:email', async (req, res) => {
-      const email = req.params.email;
-      const query = { userEmail: email };
-      const result = await serviceCollection.find(query).toArray();
-      res.send(result);
+      try {
+        const email = req.params.email;
+        const filter = req.query.filter || ''; // Default to empty string
+        const search = req.query.search || '';
+
+        console.log('Filter:', filter, 'Search:', search);
+
+        // Construct the query object
+        let query = { userEmail: email };
+
+        // Apply filter and search conditions if provided
+        if (filter) query.category = filter;
+        if (search) query.title = { $regex: search, $options: 'i' }; // Case-insensitive search
+
+        // Fetch the data from the collection
+        const result = await serviceCollection.find(query).toArray();
+
+        // Send the response
+        res.send(result);
+      } catch (error) {
+        console.error('Error fetching services:', error);
+        res.status(500).send({ message: 'Internal Server Error' });
+      }
     });
+
     app.delete('/service/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -68,6 +88,17 @@ async function run() {
     app.get('/all-service', async (req, res) => {
       const query = serviceCollection.find();
       const result = await query.toArray();
+      res.send(result);
+    });
+    //update service
+    app.put('/update-service/:id', async (req, res) => {
+      const { id } = req.params;
+      const updatedService = req.body;
+      const query = { _id: new ObjectId(id) };
+      console.log(query);
+      const update = { $set: updatedService };
+      const options = { upsert: false };
+      const result = await serviceCollection.updateOne(query, update, options);
       res.send(result);
     });
     //find
