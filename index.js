@@ -30,8 +30,6 @@ const client = new MongoClient(uri, {
 const verifyToken = (req, res, next) => {
   const token = req.cookies?.token;
 
-  console.log('Middleware received token:', token);
-
   if (!token) {
     return res.status(401).send({ message: 'Unauthorized access' });
   }
@@ -43,8 +41,6 @@ const verifyToken = (req, res, next) => {
       return res.status(403).send({ message: 'Forbidden: Invalid token' });
     }
     req.user = decoded;
-
-    console.log('Decoded token:', decoded);
 
     next();
   });
@@ -97,7 +93,7 @@ async function run() {
     });
 
     //service get
-    app.get('/service', verifyToken, async (req, res) => {
+    app.get('/service', async (req, res) => {
       const query = serviceCollection.find().limit(6);
       const result = await query.toArray();
       res.send(result);
@@ -133,10 +129,36 @@ async function run() {
       res.send(result);
     });
 
-    app.get('/all-service', verifyToken, async (req, res) => {
-      const query = serviceCollection.find();
-      const result = await query.toArray();
+    app.get('/all-service', async (req, res) => {
+      const filter = req.query.filter || '';
+      let query = {};
+
+      if (filter) {
+        query.category = filter;
+      }
+      const result = await serviceCollection.find(query).toArray();
       res.send(result);
+    });
+    //user
+    app.get('/user-count', async (req, res) => {
+      const { userEmail } = req.query;
+
+      const result = await serviceCollection
+        .aggregate([
+          {
+            $match: { userEmail },
+          },
+          {
+            $group: {
+              _id: '$userEmail',
+              count: { $sum: 1 },
+            },
+          },
+        ])
+        .toArray();
+      const userCount = result.length > 0 ? result[0].count : 0;
+      console.log(userCount);
+      res.send({ userEmail, serviceCount: userCount });
     });
     //update service
     app.put('/update-service/:id', verifyToken, async (req, res) => {
