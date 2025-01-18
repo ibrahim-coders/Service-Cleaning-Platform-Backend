@@ -9,7 +9,11 @@ const cookieParser = require('cookie-parser');
 
 app.use(
   cors({
-    origin: ['http://localhost:5173'],
+    origin: [
+      'http://localhost:5173',
+      'https://prodeact-service.web.app',
+      'https://prodeact-service.firebaseapp.com',
+    ],
     credentials: true,
   })
 );
@@ -37,7 +41,6 @@ const verifyToken = (req, res, next) => {
   // Verify the token
   jwt.verify(token, process.env.JWT_SECRET_KEY, (err, decoded) => {
     if (err) {
-      console.error('Token verification error:', err.message);
       return res.status(403).send({ message: 'Forbidden: Invalid token' });
     }
     req.user = decoded;
@@ -49,9 +52,9 @@ const verifyToken = (req, res, next) => {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
-    await client.db('admin').command({ ping: 1 });
+    // await client.db('admin').command({ ping: 1 });
     console.log(
       'Pinged your deployment. You successfully connected to MongoDB!'
     );
@@ -66,7 +69,6 @@ async function run() {
       const token = jwt.sign(email, process.env.JWT_SECRET_KEY, {
         expiresIn: '90d',
       });
-      console.log(token);
       res
         .cookie('token', token, {
           httpOnly: true,
@@ -157,7 +159,7 @@ async function run() {
         ])
         .toArray();
       const userCount = result.length > 0 ? result[0].count : 0;
-      console.log(userCount);
+
       res.send({ userEmail, serviceCount: userCount });
     });
     //update service
@@ -165,7 +167,7 @@ async function run() {
       const { id } = req.params;
       const updatedService = req.body;
       const query = { _id: new ObjectId(id) };
-      console.log(query);
+
       const update = { $set: updatedService };
       const options = { upsert: false };
       const result = await serviceCollection.updateOne(query, update, options);
