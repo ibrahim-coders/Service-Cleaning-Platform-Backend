@@ -10,8 +10,9 @@ const cookieParser = require('cookie-parser');
 app.use(
   cors({
     origin: [
-      'https://prodeact-service.web.app',
-      'https://prodeact-service.firebaseapp.com',
+      'http://localhost:5173'
+      // 'https://prodeact-service.web.app',
+      // 'https://prodeact-service.firebaseapp.com',
     ],
     credentials: true,
   })
@@ -19,7 +20,9 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-const uri = `mongodb+srv://${process.env.SECRET_NAME}:${process.env.SECRET_PASS}@cluster0.whh17.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+// const uri = `mongodb+srv://${process.env.SECRET_NAME}:${process.env.SECRET_PASS}@cluster0.whh17.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
+
+const uri ='mongodb://localhost:27017/Assignment-11' 
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
